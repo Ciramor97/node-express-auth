@@ -13,13 +13,13 @@
   </head>
   <body>
     <main>
-      <%- include("header.html") %>
+      <%- include("header.html", {utilisateur:utilisateur}) %>
 
       <div class="album py-5 bg-light">
         <div class="container">
-          <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-0">
+          <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-3">
             <% cours.forEach((cour)=>{ %> <%- include("cours_item.html", {cours
-            : cour, utilisateur}) %> <% }) %>
+            : cour}) %> <% }) %>
           </div>
         </div>
       </div>

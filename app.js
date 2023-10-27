@@ -3,69 +3,69 @@ const ejs = require("ejs");
 const path = require("path");
 const fs = require("fs");
 const { cours, utilisateurs } = require("./data");
-// const session = require("express-session");
-var jwt = require("jsonwebtoken");
+const session = require("express-session");
+// var jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 
 require("dotenv").config();
 
 const app = express();
 
-// app.use(
-//   session({
-//     name: process.env.SESSION_NAME,
-//     resave: false,
-//     saveUninitialized: false,
-//     secret: process.env.SESSION_SECRET,
-//     cookie: {
-//       maxAge: 1000 * 60 * 60 * 24 * 7,
-//       sameSite: true,
-//       secure: true,
-//     },
-//   })
-// );
+app.use(
+  session({
+    name: process.env.SESSION_NAME,
+    resave: false,
+    saveUninitialized: false,
+    secret: process.env.SESSION_SECRET,
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+      sameSite: true,
+      secure: true,
+    },
+  })
+);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 const protectionRoute = (req, res, next) => {
-  const token = req.query.token;
-  if (token) {
-    jwt.verify(token, process.env.TOKEN_KEY, (err, utilisateur) => {
-      if (err) {
-        res.redirect("/connexion");
-      }
-      utilisateur.token = token;
-      req.utilisateur = utilisateur;
-      next();
-    });
-  } else {
-    return res.redirect("/connexion");
-  }
-  // if (!req.session.idUtilisateur) {
-  //   res.redirect("/connexion");
+  // const token = req.query.token;
+  // if (token) {
+  //   jwt.verify(token, process.env.TOKEN_KEY, (err, utilisateur) => {
+  //     if (err) {
+  //       res.redirect("/connexion");
+  //     }
+  //     utilisateur.token = token;
+  //     req.utilisateur = utilisateur;
+  //     next();
+  //   });
   // } else {
-  //   next();
+  //   return res.redirect("/connexion");
   // }
+  if (!req.session.idUtilisateur) {
+    res.redirect("/connexion");
+  } else {
+    next();
+  }
 };
 
 app.use((req, res, next) => {
-  const { token } = req.query;
-  if (token) {
-    jwt.verify(token, process.env.TOKEN_KEY, (err, utilisateur) => {
-      if (!err) {
-        utilisateur.token = token;
-        res.locals.utilisateur = utilisateur;
-      }
-    });
-  }
-  next();
-  // const { idUtilisateur } = req.session;
-  // if (idUtilisateur) {
-  //   res.locals.utilisateur = utilisateurs.find(
-  //     (utilisateur) => utilisateur.id === idUtilisateur
-  //   );
+  // const { token } = req.query;
+  // if (token) {
+  //   jwt.verify(token, process.env.TOKEN_KEY, (err, utilisateur) => {
+  //     if (!err) {
+  //       utilisateur.token = token;
+  //       res.locals.utilisateur = utilisateur;
+  //     }
+  //   });
   // }
   // next();
+  const { idUtilisateur } = req.session;
+  if (idUtilisateur) {
+    res.locals.utilisateur = utilisateurs.find(
+      (utilisateur) => utilisateur.id === idUtilisateur
+    );
+  }
+  next();
 });
 
 app.engine("html", ejs.__express);
@@ -75,7 +75,7 @@ app.use(express.static(path.join(__dirname, "public")));
 app.set("view engine", "html");
 app.set("views", path.join(__dirname, "views"));
 
-app.get("/index", (req, res) => {
+app.get("/", (req, res) => {
   const { utilisateur } = res.locals;
   console.log(utilisateurs);
   res.render("index", { cours, utilisateur });
@@ -96,18 +96,18 @@ app.post("/connexion", async (req, res) => {
         utilisateur.password
       );
       if (validPassWord) {
-        // req.session.idUtilisateur = utilisateur.id;
-        const token = jwt.sign(
-          {
-            id: utilisateur.id,
-            nom: utilisateur.nom,
-            email: utilisateur.email,
-          },
-          process.env.TOKEN_KEY
-        );
-        utilisateur.token = token;
-        return res.render("index", { cours, utilisateur });
-        // return res.redirect("/");
+        req.session.idUtilisateur = utilisateur.id;
+        // const token = jwt.sign(
+        //   {
+        //     id: utilisateur.id,
+        //     nom: utilisateur.nom,
+        //     email: utilisateur.email,
+        //   },
+        //   process.env.TOKEN_KEY
+        // );
+        // utilisateur.token = token;
+        // return res.render("index", { cours, utilisateur });
+        return res.redirect("/");
       } else {
         console.log("Mot de passe incorrect");
       }
@@ -138,13 +138,13 @@ app.post("/inscription", async (req, res) => {
         password: passwordToSave,
       };
       utilisateurs.push(nouvelUtilisateur);
-      const token = jwt.sign(
-        { id: nouvelUtilisateur.id, nom, email },
-        process.env.TOKEN_KEY
-      );
-      nouvelUtilisateur.token = token;
-      // req.session.idUtilisateur = nouvelUtilisateur.id;
-      return res.redirect("/index");
+      // const token = jwt.sign(
+      //   { id: nouvelUtilisateur.id, nom, email },
+      //   process.env.TOKEN_KEY
+      // );
+      // nouvelUtilisateur.token = token;
+      req.session.idUtilisateur = nouvelUtilisateur.id;
+      return res.redirect("/");
     }
   }
   res.redirect("/inscription");
@@ -178,16 +178,16 @@ app.get("/video", (req, res) => {
 });
 
 app.post("/deconnexion", (req, res) => {
-  res.locals.utilisateur = undefined;
+  // res.locals.utilisateur = undefined;
 
-  res.render("index", { cours });
-  //   req.session.destroy((err) => {
-  //     if (err) {
-  //       return res.redirect("/");
-  //     }
-  //     res.clearCookie(process.env.SESSION_NAME);
-  //     res.redirect("/");
-  //   });
+  // res.render("index", { cours });
+  req.session.destroy((err) => {
+    if (err) {
+      return res.redirect("/");
+    }
+    res.clearCookie(process.env.SESSION_NAME);
+    res.redirect("/");
+  });
 });
 
 app.listen(4001);
